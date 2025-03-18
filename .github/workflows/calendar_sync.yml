@@ -1,0 +1,40 @@
+name: 华尔街见闻日历同步
+
+on:
+  schedule:
+    # 每周一0点执行 (UTC时间，对应北京时间周一8点)
+    - cron: '0 16 * * 0'  # UTC时间周日16点，对应北京时间周一0点
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  sync-calendar:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v3
+      
+    - name: 设置Python环境
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+        
+    - name: 安装依赖
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 获取日历数据并生成ICS文件
+      run: python fetch_calendar.py
+      env:
+        COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
+        COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
+        COS_REGION: ${{ secrets.COS_REGION }}
+        COS_BUCKET: ${{ secrets.COS_BUCKET }}
+        COS_OBJECT_KEY: ${{ secrets.COS_OBJECT_KEY }}
+        
+    - name: 保存ICS文件为工作流程构件
+      uses: actions/upload-artifact@v3
+      with:
+        name: calendar-files
+        path: calendar_files/wsc_events.ics 

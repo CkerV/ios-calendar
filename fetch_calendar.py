@@ -13,11 +13,14 @@ from qcloud_cos import CosS3Client
 import sys
 
 # 配置日志
+# 检查是否在GitHub Actions环境中运行
+is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("calendar_sync.log"),
+        logging.FileHandler("calendar_sync.log") if not is_github_actions else logging.StreamHandler(),
         logging.StreamHandler()
     ]
 )
