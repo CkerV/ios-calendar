@@ -119,12 +119,8 @@ def create_ics_file(calendar_data):
     # 创建新的日历
     cal = Calendar()
     
-    # 获取下周的日期范围
-    start_date, end_date = get_next_week_dates()
-    start_date_str = start_date.strftime("%Y-%m-%d")
-    end_date_str = end_date.strftime("%Y-%m-%d")
-    
-    logger.info(f"获取从 {start_date_str} 到 {end_date_str} 的中国日历事件")
+    # 不再获取日期范围进行过滤，处理所有事件
+    logger.info(f"处理所有中国日历事件，不进行日期过滤")
     
     # 添加事件
     event_count = 0
@@ -134,30 +130,29 @@ def create_ics_file(calendar_data):
         if not event_datetime:
             continue
             
-        # 只处理未来一周内的事件
-        if start_date.date() <= event_datetime.date() <= end_date.date():
-            cal_event = Event()
-            
-            # 获取事件UID (保持事件唯一性)
-            cal_event.uid = event_data.get('uid', '')
-            
-            # 解析摘要中的时间和标题
-            time_str, title = parse_summary(event_data.get('summary', ''))
-            
-            # 设置事件名称
-            cal_event.name = title or event_data.get('summary', '未知事件')
-            
-            # 设置事件开始和结束时间
-            cal_event.begin = event_datetime
-            # 大多数金融日历事件默认为30分钟
-            cal_event.end = event_datetime + timedelta(minutes=30)
-            
-            # 添加描述
-            cal_event.description = f"华尔街见闻中国日历事件\n原始摘要: {event_data.get('summary', '')}"
-            
-            # 添加事件到日历
-            cal.events.add(cal_event)
-            event_count += 1
+        # 处理所有事件，不再进行日期过滤
+        cal_event = Event()
+        
+        # 获取事件UID (保持事件唯一性)
+        cal_event.uid = event_data.get('uid', '')
+        
+        # 解析摘要中的时间和标题
+        time_str, title = parse_summary(event_data.get('summary', ''))
+        
+        # 设置事件名称
+        cal_event.name = title or event_data.get('summary', '未知事件')
+        
+        # 设置事件开始和结束时间
+        cal_event.begin = event_datetime
+        # 大多数金融日历事件默认为30分钟
+        cal_event.end = event_datetime + timedelta(minutes=30)
+        
+        # 添加描述
+        cal_event.description = f"华尔街见闻中国日历事件\n原始摘要: {event_data.get('summary', '')}"
+        
+        # 添加事件到日历
+        cal.events.add(cal_event)
+        event_count += 1
     
     # 保存ICS文件
     if event_count > 0:
@@ -182,7 +177,7 @@ def create_ics_file(calendar_data):
                     logger.error(f"使用绝对路径保存文件时也出错: {e2}")
             return False
     else:
-        logger.warning("未找到未来一周内的中国事件")
+        logger.warning("未找到任何中国日历事件")
         return False
 
 def upload_to_cos(file_path):
