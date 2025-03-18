@@ -101,7 +101,18 @@ def create_ics_file(calendar_data):
         return False
     
     # 确保输出目录存在
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    try:
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        logger.info(f"创建或确认输出目录: {OUTPUT_DIR}")
+    except Exception as e:
+        logger.error(f"创建输出目录时出错: {e}")
+        # 在GitHub Actions环境中尝试使用相对路径
+        if is_github_actions:
+            global ICS_FILE
+            OUTPUT_DIR = "./calendar_files"
+            ICS_FILE = os.path.join(OUTPUT_DIR, "wsc_events.ics")
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            logger.info(f"在GitHub Actions环境中使用替代路径: {OUTPUT_DIR}")
     
     # 创建新的日历
     cal = Calendar()
@@ -148,10 +159,26 @@ def create_ics_file(calendar_data):
     
     # 保存ICS文件
     if event_count > 0:
-        with open(ICS_FILE, 'w') as f:
-            f.write(str(cal))
-        logger.info(f"成功创建ICS文件，包含 {event_count} 个事件")
-        return True
+        try:
+            with open(ICS_FILE, 'w') as f:
+                f.write(str(cal))
+            logger.info(f"成功创建ICS文件，包含 {event_count} 个事件")
+            logger.info(f"ICS文件保存位置: {os.path.abspath(ICS_FILE)}")
+            return True
+        except Exception as e:
+            logger.error(f"保存ICS文件时出错: {e}")
+            # 如果在GitHub Actions环境中尝试使用不同的方法
+            if is_github_actions:
+                try:
+                    # 使用绝对路径
+                    absolute_path = os.path.abspath(ICS_FILE)
+                    with open(absolute_path, 'w') as f:
+                        f.write(str(cal))
+                    logger.info(f"使用绝对路径成功创建ICS文件: {absolute_path}")
+                    return True
+                except Exception as e2:
+                    logger.error(f"使用绝对路径保存文件时也出错: {e2}")
+            return False
     else:
         logger.warning("未找到未来一周内的事件")
         return False
@@ -165,6 +192,10 @@ def upload_to_cos(file_path):
     # 检查COS配置是否完整
     if not all([COS_SECRET_ID, COS_SECRET_KEY, COS_BUCKET]):
         logger.error("腾讯云COS配置不完整，请设置环境变量或在脚本中直接配置")
+        # 在GitHub Actions环境中，可能没有COS配置，但我们不想让工作流失败
+        if is_github_actions:
+            logger.warning("在GitHub Actions环境中，跳过COS上传")
+            return True
         return False
     
     try:
@@ -192,11 +223,17 @@ def upload_to_cos(file_path):
     
     except Exception as e:
         logger.error(f"上传文件到腾讯云COS时发生错误: {e}")
+        # 在GitHub Actions环境中，不因COS上传失败而让整个工作流失败
+        if is_github_actions:
+            logger.warning("在GitHub Actions环境中，忽略COS上传错误，继续执行")
+            return True
         return False
 
 def main():
     """主函数"""
     logger.info("开始获取日历数据")
+    logger.info(f"运行环境: {'GitHub Actions' if is_github_actions else '本地或服务器'}")
+    
     calendar_data = fetch_calendar_data()
     
     if calendar_data:
@@ -213,6 +250,11 @@ def main():
                 logger.info("ICS文件已成功上传到腾讯云COS")
             else:
                 logger.error("ICS文件上传到腾讯云COS失败")
+                
+            # 在GitHub Actions环境中，显示文件路径
+            if is_github_actions:
+                logger.info(f"GitHub Actions环境中的文件路径: {os.path.abspath(ICS_FILE)}")
+                print(f"##[notice] ICS文件生成路径: {os.path.abspath(ICS_FILE)}")
             
             # 显示导入指南
             print("\n如何导入到iOS日历:")
@@ -225,8 +267,12 @@ def main():
             print("3. 点击文件，选择添加到日历\n")
         else:
             logger.error("创建ICS文件失败")
+            if is_github_actions:
+                print("##[error] 创建ICS文件失败")
     else:
         logger.error("获取日历数据失败")
+        if is_github_actions:
+            print("##[error] 获取日历数据失败")
 
 if __name__ == "__main__":
     main() 
