@@ -8,6 +8,9 @@ from ics import Calendar, Event
 import os
 import logging
 import re
+from qcloud_cos import CosConfig
+from qcloud_cos import CosS3Client
+import sys
 
 # 配置日志
 logging.basicConfig(
@@ -26,6 +29,13 @@ CALENDAR_URL = "https://ics.wallstreetcn.com/global.json"
 # ICS文件保存路径
 OUTPUT_DIR = "calendar_files"
 ICS_FILE = os.path.join(OUTPUT_DIR, "wsc_events.ics")
+
+# 腾讯云COS配置
+COS_SECRET_ID = os.environ.get('COS_SECRET_ID', '')  # 从环境变量获取，也可以直接设置
+COS_SECRET_KEY = os.environ.get('COS_SECRET_KEY', '')  # 从环境变量获取，也可以直接设置
+COS_REGION = os.environ.get('COS_REGION', 'ap-beijing')  # COS存储桶所在地域
+COS_BUCKET = os.environ.get('COS_BUCKET', '')  # 存储桶名称
+COS_OBJECT_KEY = os.environ.get('COS_OBJECT_KEY', 'calendar/wsc_events.ics')  # 对象键（文件在COS中的路径）
 
 def get_next_week_dates():
     """获取未来一周的起始和结束日期"""
@@ -143,6 +153,44 @@ def create_ics_file(calendar_data):
         logger.warning("未找到未来一周内的事件")
         return False
 
+def upload_to_cos(file_path):
+    """上传文件到腾讯云COS"""
+    if not os.path.exists(file_path):
+        logger.error(f"要上传的文件不存在: {file_path}")
+        return False
+        
+    # 检查COS配置是否完整
+    if not all([COS_SECRET_ID, COS_SECRET_KEY, COS_BUCKET]):
+        logger.error("腾讯云COS配置不完整，请设置环境变量或在脚本中直接配置")
+        return False
+    
+    try:
+        # 创建COS客户端
+        config = CosConfig(
+            Region=COS_REGION,
+            SecretId=COS_SECRET_ID,
+            SecretKey=COS_SECRET_KEY
+        )
+        client = CosS3Client(config)
+        
+        # 上传文件
+        response = client.upload_file(
+            Bucket=COS_BUCKET,
+            LocalFilePath=file_path,
+            Key=COS_OBJECT_KEY
+        )
+        
+        # 生成文件访问URL（如果是公共读取权限的存储桶）
+        file_url = f'https://{COS_BUCKET}.cos.{COS_REGION}.myqcloud.com/{COS_OBJECT_KEY}'
+        
+        logger.info(f"文件已成功上传到腾讯云COS，对象键为: {COS_OBJECT_KEY}")
+        logger.info(f"文件URL: {file_url}")
+        return True
+    
+    except Exception as e:
+        logger.error(f"上传文件到腾讯云COS时发生错误: {e}")
+        return False
+
 def main():
     """主函数"""
     logger.info("开始获取日历数据")
@@ -155,6 +203,13 @@ def main():
         if success:
             logger.info(f"ICS文件已生成: {ICS_FILE}")
             logger.info("请将此文件导入到iOS日历应用中")
+            
+            # 上传到腾讯云COS
+            upload_success = upload_to_cos(ICS_FILE)
+            if upload_success:
+                logger.info("ICS文件已成功上传到腾讯云COS")
+            else:
+                logger.error("ICS文件上传到腾讯云COS失败")
             
             # 显示导入指南
             print("\n如何导入到iOS日历:")
