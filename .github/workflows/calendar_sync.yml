@@ -36,21 +36,16 @@ jobs:
         COS_BUCKET: ${{ secrets.COS_BUCKET }}
         COS_OBJECT_KEY: ${{ secrets.COS_OBJECT_KEY }}
         
-    - name: 检查ICS文件是否生成
+    - name: 检查ICS文件是否生成和上传
       run: |
         if [ -f "calendar_files/wsc_events.ics" ]; then
           echo "ICS文件已成功生成"
+          # 在工作流日志中显示ICS文件内容，方便在GitHub查看
+          echo "========================= ICS文件内容 ========================="
+          cat calendar_files/wsc_events.ics
+          echo "================================================================"
+          echo "文件已生成并可能已上传至腾讯云COS，请查看上方日志了解详情"
         else
-          echo "警告：ICS文件未生成，将创建一个空文件用于上传测试"
-          mkdir -p calendar_files
-          touch calendar_files/wsc_events.ics
-          echo "BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR" > calendar_files/wsc_events.ics
-        fi
-        
-    - name: 保存ICS文件为工作流程构件
-      uses: actions/upload-artifact@v3
-      with:
-        name: calendar-files
-        path: calendar_files/
-        if-no-files-found: warn
-        retention-days: 7 
+          echo "警告：ICS文件未生成"
+          exit 1
+        fi 
