@@ -4,7 +4,9 @@
 
 ## 功能特点
 
-- 自动从 https://ics.wallstreetcn.com/global.json 获取未来一周的日历数据
+- 自动从以下数据源获取未来一周的日历数据:
+  - 全球日历: https://ics.wallstreetcn.com/global.json
+  - 中国日历: https://ics.wallstreetcn.com/china.json
 - 生成兼容iOS日历的ICS文件
 - 设置自动任务，每周一0点自动更新日历数据
 - 支持自动上传ICS文件到腾讯云COS
@@ -33,13 +35,23 @@ python3 setup_cos.py
 
 ### 2. 手动获取日历数据
 
-如果您想立即获取未来一周的日历数据，可以直接运行：
+如果您想立即获取未来一周的日历数据，可以运行以下命令：
+
+#### 获取全球日历数据
 
 ```bash
 python3 fetch_calendar.py
 ```
 
 这会在`calendar_files`目录中生成一个`wsc_events.ics`文件，并尝试将其上传到腾讯云COS（如已配置）。
+
+#### 获取中国日历数据
+
+```bash
+python3 fetch_china_calendar.py
+```
+
+这会在`calendar_files`目录中生成一个`wsc_china_events.ics`文件，并尝试将其上传到腾讯云COS（如已配置）。
 
 ### 3. 设置自动任务
 
@@ -64,7 +76,8 @@ python3 setup_cron.py
    - `COS_SECRET_KEY`: 腾讯云API密钥
    - `COS_REGION`: 存储桶所在区域（如：ap-guangzhou）
    - `COS_BUCKET`: 存储桶名称
-   - `COS_OBJECT_KEY`: 对象键（文件在COS中的路径，默认: calendar/wsc_events.ics）
+   - `COS_OBJECT_KEY`: 全球日历对象键（文件在COS中的路径，默认: calendar/wsc_events.ics）
+   - `COS_OBJECT_KEY_CHINA`: 中国日历对象键（文件在COS中的路径，默认: calendar/wsc_china_events.ics）
 3. GitHub Actions将按照设定的时间（每周一0点北京时间）自动执行脚本
 4. 您可以在Actions选项卡中查看执行历史和日志
 5. 每次执行后，ICS文件也会保存为工作流程构件，可以直接从GitHub下载
@@ -75,13 +88,13 @@ python3 setup_cron.py
 
 **方法一：直接发送到手机**
 
-1. 将生成的`wsc_events.ics`文件发送到您的iOS设备（通过电子邮件、AirDrop或其他方式）
+1. 将生成的ICS文件（`wsc_events.ics`和/或`wsc_china_events.ics`）发送到您的iOS设备（通过电子邮件、AirDrop或其他方式）
 2. 在iOS设备上打开该文件
 3. 系统会提示您添加到日历，点击"添加"
 
 **方法二：通过iCloud同步**
 
-1. 将`wsc_events.ics`文件上传到iCloud Drive
+1. 将ICS文件上传到iCloud Drive
 2. 在iOS设备上通过"文件"应用访问该文件
 3. 点击文件，选择添加到日历
 
@@ -107,7 +120,7 @@ python3 setup_cron.py
 
 ## 日志和故障排除
 
-- 在本地运行时，脚本运行日志保存在`calendar_sync.log`文件中
+- 在本地运行时，脚本运行日志保存在`calendar_sync.log`（全球日历）和`china_calendar_sync.log`（中国日历）文件中
 - 如果使用LaunchAgent，stdout和stderr日志分别保存在`calendar_sync_stdout.log`和`calendar_sync_stderr.log`文件中
 - 如果使用GitHub Actions，日志可以在Actions标签页中查看
 

@@ -1,0 +1,53 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:ics.py - http://git.io/lLljaA
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 中国平安、爱美客、牧原股份、金山软件、中通快递、腾讯控股、安踏体育
+DTEND:20250319T003000Z
+DTSTART:20250319T000000Z
+SUMMARY:中国平安、爱美客、牧原股份、金山软件、中通快递、腾讯控股、安踏体育
+UID:6619bf8a30b251e18b4437fcb96133da@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 中国石化
+DTEND:20250323T003000Z
+DTSTART:20250323T000000Z
+SUMMARY:中国石化
+UID:fd1cea950f699b011777c47c6c750785@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 鸿蒙智行新品发布会
+DTEND:20250320T150000Z
+DTSTART:20250320T143000Z
+SUMMARY:鸿蒙智行新品发布会
+UID:3b47e5268a1acd2902017cce805b5806@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 09:00 中国公布3月1/5年期贷款市场报价利率(LPR)
+DTEND:20250320T093000Z
+DTSTART:20250320T090000Z
+SUMMARY:中国公布3月1/5年期贷款市场报价利率(LPR)
+UID:2e8a4a815558805ef61c093555a1ca0e@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 中国联通、阅文集团、小米集团、华润啤酒 福耀玻璃、小鹏汽车、贝壳、腾讯音乐
+DTEND:20250318T003000Z
+DTSTART:20250318T000000Z
+SUMMARY:中国联通、阅文集团、小米集团、华润啤酒 福耀玻璃、小鹏汽车、贝壳、腾讯音乐
+UID:f628a401ef2897487d59649bd7fee7b7@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 中远海控、金龙鱼、洛阳钼业、交通银行、中国神华、美团、名创优品、TCL电子、蔚来汽车
+DTEND:20250321T003000Z
+DTSTART:20250321T000000Z
+SUMMARY:中远海控、金龙鱼、洛阳钼业、交通银行、中国神华、美团、名创优品、TCL电子、蔚来汽车
+UID:280b6d4f1336fc9ae6bf0540e7783211@wallstreetcn.com
+END:VEVENT
+BEGIN:VEVENT
+DESCRIPTION:华尔街见闻中国日历事件\n原始摘要: 中国移动、吉利汽车、同程旅行、拼多多
+DTEND:20250320T003000Z
+DTSTART:20250320T000000Z
+SUMMARY:中国移动、吉利汽车、同程旅行、拼多多
+UID:44dcac80c19d821bd835c140f0a03129@wallstreetcn.com
+END:VEVENT
+END:VCALENDAR
