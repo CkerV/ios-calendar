@@ -84,3 +84,18 @@
 2025-03-18 17:21:46,772 - calendar_sync - INFO - 文件已成功上传到腾讯云COS，对象键为: calendar/wsc_events.ics
 2025-03-18 17:21:46,773 - calendar_sync - INFO - 文件URL: https://ios-calendar-1321255062.cos.ap-guangzhou.myqcloud.com/calendar/wsc_events.ics
 2025-03-18 17:21:46,773 - calendar_sync - INFO - ICS文件已成功上传到腾讯云COS
+2025-03-19 09:49:44,154 - calendar_sync - INFO - 开始获取日历数据
+2025-03-19 09:49:44,154 - calendar_sync - INFO - 运行环境: 本地或服务器
+2025-03-19 09:49:45,140 - calendar_sync - INFO - 成功获取日历数据，共 21 条记录
+2025-03-19 09:49:45,140 - calendar_sync - INFO - 创建或确认输出目录: calendar_files
+2025-03-19 09:49:45,140 - calendar_sync - INFO - 处理所有日历事件，不进行日期过滤
+2025-03-19 09:49:45,146 - calendar_sync - INFO - 成功创建ICS文件，包含 21 个事件
+2025-03-19 09:49:45,146 - calendar_sync - INFO - ICS文件保存位置: /Users/kuncai/dev/ics-demo/calendar_files/wsc_events.ics
+2025-03-19 09:49:45,146 - calendar_sync - INFO - ICS文件已生成: calendar_files/wsc_events.ics
+2025-03-19 09:49:45,146 - calendar_sync - INFO - 请将此文件导入到iOS日历应用中
+2025-03-19 09:49:45,146 - qcloud_cos.cos_client - INFO - generate built-in connection pool success. maxsize=10,10
+2025-03-19 09:49:45,146 - qcloud_cos.cos_client - INFO - bound built-in connection pool when new client. maxsize=10,10
+2025-03-19 09:49:45,147 - qcloud_cos.cos_client - INFO - put object, url=:https://ios-calendar-1321255062.cos.ap-guangzhou.myqcloud.com/calendar/wsc_events.ics ,headers=:{}
+2025-03-19 09:49:45,492 - calendar_sync - INFO - 文件已成功上传到腾讯云COS，对象键为: calendar/wsc_events.ics
+2025-03-19 09:49:45,492 - calendar_sync - INFO - 文件URL: https://ios-calendar-1321255062.cos.ap-guangzhou.myqcloud.com/calendar/wsc_events.ics
+2025-03-19 09:49:45,493 - calendar_sync - INFO - ICS文件已成功上传到腾讯云COS

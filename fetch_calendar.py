@@ -11,6 +11,7 @@ import re
 from qcloud_cos import CosConfig
 from qcloud_cos import CosS3Client
 import sys
+import pytz
 
 # 配置日志
 # 检查是否在GitHub Actions环境中运行
@@ -40,9 +41,12 @@ COS_REGION = os.environ.get('COS_REGION', 'ap-beijing')  # COS存储桶所在地
 COS_BUCKET = os.environ.get('COS_BUCKET', '')  # 存储桶名称
 COS_OBJECT_KEY = os.environ.get('COS_OBJECT_KEY', 'calendar/wsc_events.ics')  # 对象键（文件在COS中的路径）
 
+# 定义中国时区
+CHINA_TZ = pytz.timezone('Asia/Shanghai')
+
 def get_next_week_dates():
     """获取未来一周的起始和结束日期"""
-    today = datetime.now()
+    today = datetime.now(CHINA_TZ)
     start_date = today
     end_date = today + timedelta(days=7)
     return start_date, end_date
@@ -64,13 +68,17 @@ def parse_datetime(dt_string):
     
     # 尝试解析完整的日期时间格式 (2025-03-17 20:30:00)
     try:
-        return datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        # 将时间解析为中国时区（北京时间）
+        dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
+        return CHINA_TZ.localize(dt)
     except ValueError:
         pass
     
     # 尝试解析仅有日期的格式 (2025-03-17)
     try:
-        return datetime.strptime(dt_string, "%Y-%m-%d")
+        # 对于只有日期的情况，设置时间为当天的00:00（北京时间）
+        dt = datetime.strptime(dt_string, "%Y-%m-%d")
+        return CHINA_TZ.localize(dt)
     except ValueError:
         logger.warning(f"无法解析日期时间: {dt_string}")
         return None
@@ -138,6 +146,17 @@ def create_ics_file(calendar_data):
         
         # 解析摘要中的时间和标题
         time_str, title = parse_summary(event_data.get('summary', ''))
+        
+        # 如果摘要中有更准确的时间，则更新事件时间
+        if time_str and time_str != "待定" and event_datetime:
+            # 尝试替换事件日期中的时间部分
+            try:
+                hour, minute = map(int, time_str.split(':'))
+                # 创建具有正确时间的新日期时间对象，保留原始日期和时区
+                event_datetime = event_datetime.replace(hour=hour, minute=minute)
+                logger.debug(f"根据摘要中的时间更新事件时间: {time_str} -> {event_datetime}")
+            except (ValueError, AttributeError) as e:
+                logger.warning(f"无法从摘要中提取时间: {time_str}, {e}")
         
         # 设置事件名称
         cal_event.name = title or event_data.get('summary', '未知事件')
