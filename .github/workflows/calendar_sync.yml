@@ -22,28 +22,32 @@ jobs:
     - name: 安装依赖
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -e .
         
     - name: 确保输出目录存在
-      run: mkdir -p calendar_files
+      run: |
+        mkdir -p calendar_files
+        mkdir -p logs
         
     - name: 获取全球日历数据并生成ICS文件
-      run: python fetch_calendar.py
+      run: python src/core/fetch_calendar.py
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
         COS_REGION: ${{ secrets.COS_REGION }}
         COS_BUCKET: ${{ secrets.COS_BUCKET }}
         COS_OBJECT_KEY: ${{ secrets.COS_OBJECT_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         
     - name: 获取中国日历数据并生成ICS文件
-      run: python fetch_china_calendar.py
+      run: python src/core/fetch_china_calendar.py
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
         COS_REGION: ${{ secrets.COS_REGION }}
         COS_BUCKET: ${{ secrets.COS_BUCKET }}
         COS_OBJECT_KEY_CHINA: ${{ secrets.COS_OBJECT_KEY_CHINA || 'calendar/wsc_china_events.ics' }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         
     - name: 检查全球日历ICS文件是否生成和上传
       run: |

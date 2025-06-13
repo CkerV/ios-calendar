@@ -1,139 +1,143 @@
-# 华尔街见闻日历自动订阅工具
+# 华尔街见闻日历同步工具
 
-这个工具可以帮助您自动获取华尔街见闻网站的日历数据，并将其转换为ICS文件，以便导入到iOS日历应用中。
+这是一个自动同步华尔街见闻财经日历的工具，它可以获取全球和中国的财经日历事件，并生成可导入到手机日历的 ICS 文件。此工具还会使用 AI 分析每个事件的投资机会，并将分析结果包含在日历事件的描述中。
 
 ## 功能特点
 
-- 自动从以下数据源获取未来一周的日历数据:
-  - 全球日历: https://ics.wallstreetcn.com/global.json
-  - 中国日历: https://ics.wallstreetcn.com/china.json
-- 生成兼容iOS日历的ICS文件
-- 设置自动任务，每周一0点自动更新日历数据
-- 支持自动上传ICS文件到腾讯云COS
-- 支持通过GitHub Actions自动定时执行
-- 支持macOS和Linux系统
+- 自动获取华尔街见闻全球和中国财经日历数据
+- 使用 OpenAI API 分析每个事件的投资机会
+- 生成标准 ICS 格式的日历文件
+- 支持上传到腾讯云 COS 存储
+- 支持 GitHub Actions 自动运行
+- 完整的日志记录功能
 
-## 安装依赖
+## 项目结构
 
-在使用前，请确保您已安装以下Python依赖：
-
-```bash
-pip install requests ics python-crontab cos-python-sdk-v5
+```
+ics-demo/
+├── src/
+│   ├── core/
+│   │   ├── fetch_calendar.py      # 全球日历获取脚本
+│   │   └── fetch_china_calendar.py # 中国日历获取脚本
+│   └── analysis/
+│       ├── __init__.py
+│       └── event_analyzer.py      # 事件分析器
+├── tests/
+│   └── test_analysis.py          # 测试文件
+├── logs/                         # 日志目录
+├── calendar_files/               # 输出目录
+├── .github/
+│   └── workflows/
+│       └── calendar_sync.yml     # GitHub Actions 配置
+├── requirements.txt              # 项目依赖
+├── setup.py                      # 包安装配置
+└── README.md                     # 项目文档
 ```
 
-## 使用方法
+## 安装说明
 
-### 1. 配置腾讯云COS（可选）
-
-如果您希望将生成的ICS文件上传到腾讯云COS，请运行以下命令进行配置：
-
+1. 克隆项目：
 ```bash
-python3 setup_cos.py
+git clone https://github.com/your-username/ics-demo.git
+cd ics-demo
 ```
 
-按照提示输入您的腾讯云SecretId、SecretKey、存储桶名称等信息。此脚本会将配置保存到环境变量中。
-
-### 2. 手动获取日历数据
-
-如果您想立即获取未来一周的日历数据，可以运行以下命令：
-
-#### 获取全球日历数据
-
+2. 创建并激活虚拟环境（可选但推荐）：
 ```bash
-python3 fetch_calendar.py
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或
+venv\\Scripts\\activate  # Windows
 ```
 
-这会在`calendar_files`目录中生成一个`wsc_events.ics`文件，并尝试将其上传到腾讯云COS（如已配置）。
-
-#### 获取中国日历数据
-
+3. 安装项目：
 ```bash
-python3 fetch_china_calendar.py
+pip install -e .
 ```
 
-这会在`calendar_files`目录中生成一个`wsc_china_events.ics`文件，并尝试将其上传到腾讯云COS（如已配置）。
+## 配置说明
 
-### 3. 设置自动任务
+### 环境变量
 
-#### 3.1 在本地计算机上设置
+在项目根目录创建 `.env` 文件，包含以下配置：
 
-要在本地设置每周一0点自动更新日历数据的任务，请运行：
+```ini
+# OpenAI API配置
+OPENAI_API_KEY=your_openai_api_key_here
 
-```bash
-python3 setup_cron.py
+# 腾讯云COS配置（如果需要使用上传功能）
+COS_SECRET_ID=your_cos_secret_id_here
+COS_SECRET_KEY=your_cos_secret_key_here
+COS_REGION=ap-beijing
+COS_BUCKET=your_bucket_name_here
+COS_OBJECT_KEY=calendar/wsc_events.ics
+COS_OBJECT_KEY_CHINA=calendar/wsc_china_events.ics
 ```
 
-- 在macOS上，这将创建一个LaunchAgent
-- 在Linux上，这将设置一个Crontab任务
+### GitHub Actions 配置
 
-#### 3.2 使用GitHub Actions自动执行（推荐）
+如果要使用 GitHub Actions 自动运行，需要在仓库的 Settings -> Secrets and variables -> Actions 中添加上述环境变量。
 
-您也可以利用GitHub Actions来自动执行此任务，无需本地计算机一直开机：
+## 使用说明
 
-1. Fork或克隆此仓库到您的GitHub账号
-2. 在仓库设置中添加以下Secrets（设置 > Secrets and variables > Actions）：
-   - `COS_SECRET_ID`: 腾讯云API密钥ID
-   - `COS_SECRET_KEY`: 腾讯云API密钥
-   - `COS_REGION`: 存储桶所在区域（如：ap-guangzhou）
-   - `COS_BUCKET`: 存储桶名称
-   - `COS_OBJECT_KEY`: 全球日历对象键（文件在COS中的路径，默认: calendar/wsc_events.ics）
-   - `COS_OBJECT_KEY_CHINA`: 中国日历对象键（文件在COS中的路径，默认: calendar/wsc_china_events.ics）
-3. GitHub Actions将按照设定的时间（每周一0点北京时间）自动执行脚本
-4. 您可以在Actions选项卡中查看执行历史和日志
-5. 每次执行后，ICS文件也会保存为工作流程构件，可以直接从GitHub下载
+### 本地运行
 
-### 4. 将日历导入iOS设备
+1. 获取全球财经日历：
+```bash
+python src/core/fetch_calendar.py
+```
 
-有以下方法可以将生成的ICS文件导入到iOS日历：
+2. 获取中国财经日历：
+```bash
+python src/core/fetch_china_calendar.py
+```
 
-**方法一：直接发送到手机**
+生成的 ICS 文件将保存在 `calendar_files` 目录下：
+- 全球日历：`calendar_files/wsc_events.ics`
+- 中国日历：`calendar_files/wsc_china_events.ics`
 
-1. 将生成的ICS文件（`wsc_events.ics`和/或`wsc_china_events.ics`）发送到您的iOS设备（通过电子邮件、AirDrop或其他方式）
-2. 在iOS设备上打开该文件
-3. 系统会提示您添加到日历，点击"添加"
+### 导入到手机日历
 
-**方法二：通过iCloud同步**
+有以下几种方式：
 
-1. 将ICS文件上传到iCloud Drive
-2. 在iOS设备上通过"文件"应用访问该文件
-3. 点击文件，选择添加到日历
+1. 通过电子邮件：
+   - 将 ICS 文件发送到您的邮箱
+   - 在手机上打开邮件
+   - 点击附件，选择"添加到日历"
 
-**方法三：通过腾讯云COS访问（如已配置）**
+2. 通过 iCloud（iOS 用户）：
+   - 将 ICS 文件上传到 iCloud Drive
+   - 在手机上通过"文件"应用打开
+   - 选择添加到日历
 
-1. 在iOS设备上通过浏览器访问腾讯云COS中的ICS文件URL
-2. 点击下载文件，选择使用"日历"应用打开
-3. 系统会提示您添加到日历，点击"添加"
+3. 通过腾讯云 COS（如果已配置）：
+   - 文件会自动上传到配置的 COS 存储桶
+   - 通过生成的 URL 在手机上访问和导入
 
-**方法四：从GitHub Actions下载（如使用GitHub Actions）**
+### 自动运行
 
-1. 访问您的GitHub仓库的Actions页面
-2. 查看最近一次成功运行的工作流
-3. 下载calendar-files构件
-4. 将其中的ICS文件导入到iOS日历
+项目配置了 GitHub Actions 工作流，会在每周一早上 8 点（北京时间）自动运行。您也可以：
 
-### 5. 自动化导入iOS日历（需要额外设置）
+1. 在 GitHub 仓库的 Actions 页面手动触发工作流
+2. 修改 `.github/workflows/calendar_sync.yml` 中的计划时间
 
-要实现完全自动化，您可以：
+## 测试
 
-1. 配置腾讯云COS，使ICS文件有固定的URL
-2. 在iOS上设置自动化，使用快捷指令应用定期从该URL下载并导入ICS文件（需要手动创建）
+运行测试：
+```bash
+python tests/test_analysis.py
+```
 
-## 日志和故障排除
+## 日志
 
-- 在本地运行时，脚本运行日志保存在`calendar_sync.log`（全球日历）和`china_calendar_sync.log`（中国日历）文件中
-- 如果使用LaunchAgent，stdout和stderr日志分别保存在`calendar_sync_stdout.log`和`calendar_sync_stderr.log`文件中
-- 如果使用GitHub Actions，日志可以在Actions标签页中查看
+日志文件位于 `logs` 目录：
+- 全球日历：`logs/calendar_sync.log`
+- 中国日历：`logs/china_calendar_sync.log`
 
-如果遇到问题：
+## 贡献
 
-1. 确认您的网络连接正常
-2. 检查日志文件了解详细错误信息
-3. 确保所有的依赖已正确安装
-4. 如果使用腾讯云COS，确保您的SecretId、SecretKey和存储桶配置正确
-5. 如果使用GitHub Actions，请检查Secrets是否正确设置
+欢迎提交 Issue 和 Pull Request！
 
-## 注意事项
-- 如果使用本地自动化，请确保您的计算机在预定的更新时间（每周一0点）是开机状态，否则更新将不会执行
-- 由于iOS限制，目前没有完全无需人工干预的方法来自动导入ICS文件到iOS日历
-- 使用腾讯云COS可能会产生相关费用，请参考腾讯云的计费说明
-- GitHub Actions有免费额度限制，但对于这样的周期性小任务通常不会超出限制
+## 许可证
+
+[MIT License](LICENSE)

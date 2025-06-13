@@ -12,16 +12,28 @@ from qcloud_cos import CosConfig
 from qcloud_cos import CosS3Client
 import sys
 import pytz
+from analysis.event_analyzer import EventAnalyzer
+
+import sys
+from pathlib import Path
+
+# 添加项目根目录到 Python 路径
+project_root = str(Path(__file__).parent.parent.parent)
+sys.path.insert(0, project_root)
 
 # 配置日志
 # 检查是否在GitHub Actions环境中运行
 is_github_actions = os.environ.get('GITHUB_ACTIONS') == 'true'
 
+# 确保日志目录存在
+log_dir = os.path.join(project_root, "logs")
+os.makedirs(log_dir, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("calendar_sync.log") if not is_github_actions else logging.StreamHandler(),
+        logging.FileHandler(os.path.join(log_dir, "calendar_sync.log")) if not is_github_actions else logging.StreamHandler(),
         logging.StreamHandler()
     ]
 )
@@ -127,8 +139,8 @@ def create_ics_file(calendar_data):
     # 创建新的日历
     cal = Calendar()
     
-    # 不再获取日期范围进行过滤，处理所有事件
-    logger.info(f"处理所有日历事件，不进行日期过滤")
+    # 初始化事件分析器
+    analyzer = EventAnalyzer()
     
     # 添加事件
     event_count = 0
@@ -166,8 +178,27 @@ def create_ics_file(calendar_data):
         # 大多数金融日历事件默认为30分钟
         cal_event.end = event_datetime + timedelta(minutes=30)
         
-        # 添加描述
-        cal_event.description = f"华尔街见闻日历事件\n原始摘要: {event_data.get('summary', '')}"
+        # 分析投资机会
+        try:
+            # 搜索相关信息
+            related_info = analyzer.search_related_info(cal_event.name, event_datetime)
+            
+            # 分析投资机会
+            analysis = analyzer.analyze_investment_opportunity(
+                cal_event.name, 
+                event_datetime,
+                related_info
+            )
+            
+            # 格式化分析结果
+            analysis_text = analyzer.format_analysis_for_calendar(analysis)
+            
+            # 添加到事件描述
+            cal_event.description = f"{analysis_text}"
+            
+        except Exception as e:
+            logger.error(f"分析事件时出错: {e}")
+            cal_event.description = f"{event_data.get('summary', '')}"
         
         # 添加事件到日历
         cal.events.add(cal_event)
