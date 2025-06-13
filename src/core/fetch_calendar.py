@@ -74,23 +74,21 @@ def fetch_calendar_data():
         return None
 
 def parse_datetime(dt_string):
-    """解析API返回的日期时间字符串"""
+    """解析API返回的日期时间字符串（已经是北京时间）"""
     if not dt_string:
         return None
     
     # 尝试解析完整的日期时间格式 (2025-03-17 20:30:00)
     try:
-        # 将时间解析为中国时区（北京时间）
         dt = datetime.strptime(dt_string, "%Y-%m-%d %H:%M:%S")
-        return CHINA_TZ.localize(dt)
+        return dt
     except ValueError:
         pass
     
     # 尝试解析仅有日期的格式 (2025-03-17)
     try:
-        # 对于只有日期的情况，设置时间为当天的00:00（北京时间）
         dt = datetime.strptime(dt_string, "%Y-%m-%d")
-        return CHINA_TZ.localize(dt)
+        return dt
     except ValueError:
         logger.warning(f"无法解析日期时间: {dt_string}")
         return None
@@ -115,7 +113,7 @@ def parse_summary(summary):
     
     return None, summary
 
-def create_ics_file(calendar_data):
+def pycreate_ics_file(calendar_data):
     """将日历数据转换为ICS格式"""
     global ICS_FILE
     global OUTPUT_DIR
@@ -159,6 +157,9 @@ def create_ics_file(calendar_data):
         # 解析摘要中的时间和标题
         time_str, title = parse_summary(event_data.get('summary', ''))
         
+        # 判断是否为全天事件
+        is_all_day = False
+        
         # 如果摘要中有更准确的时间，则更新事件时间
         if time_str and time_str != "待定" and event_datetime:
             # 尝试替换事件日期中的时间部分
@@ -169,14 +170,29 @@ def create_ics_file(calendar_data):
                 logger.debug(f"根据摘要中的时间更新事件时间: {time_str} -> {event_datetime}")
             except (ValueError, AttributeError) as e:
                 logger.warning(f"无法从摘要中提取时间: {time_str}, {e}")
+                is_all_day = True
+        else:
+            # 如果没有具体时间，设置为全天事件
+            is_all_day = True
+            # 确保时间设置为当天的开始
+            event_datetime = event_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
         
         # 设置事件名称
         cal_event.name = title or event_data.get('summary', '未知事件')
         
-        # 设置事件开始和结束时间
-        cal_event.begin = event_datetime
-        # 大多数金融日历事件默认为30分钟
-        cal_event.end = event_datetime + timedelta(minutes=30)
+        # 设置事件时间
+        if is_all_day:
+            # 全天事件：设置 begin 和 end 为同一天
+            # 注意：ics 库会自动处理全天事件的结束时间
+            cal_event.begin = event_datetime
+            cal_event.end = event_datetime
+            cal_event.make_all_day()  # 标记为全天事件
+            logger.debug(f"创建全天事件: {cal_event.name}")
+        else:
+            # 普通事件：设置具体时间，默认持续30分钟
+            cal_event.begin = event_datetime
+            cal_event.end = event_datetime + timedelta(minutes=30)
+            logger.debug(f"创建定时事件: {cal_event.name} at {event_datetime}")
         
         # 分析投资机会
         try:
@@ -285,7 +301,7 @@ def main():
     
     if calendar_data:
         logger.info(f"成功获取日历数据，共 {len(calendar_data)} 条记录")
-        success = create_ics_file(calendar_data)
+        success = pycreate_ics_file(calendar_data)
         
         if success:
             logger.info(f"ICS文件已生成: {ICS_FILE}")
