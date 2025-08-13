@@ -12,7 +12,6 @@ from qcloud_cos import CosConfig
 from qcloud_cos import CosS3Client
 import sys
 import pytz
-from analysis.event_analyzer import EventAnalyzer
 
 import sys
 from pathlib import Path
@@ -20,6 +19,10 @@ from pathlib import Path
 # 添加项目根目录到 Python 路径
 project_root = str(Path(__file__).parent.parent.parent)
 sys.path.insert(0, project_root)
+
+# 导入事件分析器（在设置路径后）
+from src.analysis.event_analyzer import EventAnalyzer
+
 
 # 配置日志
 # 检查是否在GitHub Actions环境中运行
@@ -40,7 +43,7 @@ logging.basicConfig(
 logger = logging.getLogger("calendar_sync")
 
 # 日历数据来源URL
-CALENDAR_URL = "https://ics.wallstreetcn.com/global.json"
+CALENDAR_URL = "https://api-one-wscn.awtmt.com/apiv1/finance/macrodatas"
 
 # ICS文件保存路径
 OUTPUT_DIR = "calendar_files"
@@ -56,8 +59,29 @@ COS_OBJECT_KEY = os.environ.get('COS_OBJECT_KEY', 'calendar/wsc_events.ics')  # 
 # 定义中国时区
 CHINA_TZ = pytz.timezone('Asia/Shanghai')
 
+def get_current_week_timestamps():
+    """获取本周周一至周日的时间戳"""
+    today = datetime.now(CHINA_TZ)
+    # 获取本周周一（0=周一，6=周日）
+    days_since_monday = today.weekday()
+    monday = today - timedelta(days=days_since_monday)
+    # 设置为周一的00:00:00
+    monday = monday.replace(hour=0, minute=0, second=0, microsecond=0)
+    
+    # 获取本周周日的23:59:59
+    sunday = monday + timedelta(days=6, hours=23, minutes=59, seconds=59)
+    
+    # 转换为时间戳
+    start_timestamp = int(monday.timestamp())
+    end_timestamp = int(sunday.timestamp())
+    
+    logger.info(f"本周时间范围: {monday.strftime('%Y-%m-%d %H:%M:%S')} 至 {sunday.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"时间戳范围: {start_timestamp} 至 {end_timestamp}")
+    
+    return start_timestamp, end_timestamp
+
 def get_next_week_dates():
-    """获取未来一周的起始和结束日期"""
+    """获取未来一周的起始和结束日期（保留原函数以兼容其他代码）"""
     today = datetime.now(CHINA_TZ)
     start_date = today
     end_date = today + timedelta(days=7)
@@ -66,9 +90,37 @@ def get_next_week_dates():
 def fetch_calendar_data():
     """从API获取日历数据"""
     try:
-        response = requests.get(CALENDAR_URL)
+        # 获取本周的时间戳范围
+        start_timestamp, end_timestamp = get_current_week_timestamps()
+        
+        # 构建请求参数
+        params = {
+            'start': start_timestamp,
+            'end': end_timestamp
+        }
+        
+        logger.info(f"请求API: {CALENDAR_URL}")
+        logger.info(f"请求参数: {params}")
+        
+        response = requests.get(CALENDAR_URL, params=params)
         response.raise_for_status()
-        return response.json()
+        
+        data = response.json()
+        logger.info(f"API响应状态: {response.status_code}")
+        logger.info(f"响应数据类型: {type(data)}")
+        
+        # 检查API响应格式
+        if isinstance(data, dict) and 'code' in data:
+            if data['code'] == 20000 and 'data' in data and 'items' in data['data']:
+                items = data['data']['items']
+                logger.info(f"成功获取 {len(items)} 个事件")
+                return items
+            else:
+                logger.error(f"API返回错误: {data.get('message', '未知错误')}")
+                return None
+        else:
+            # 如果是旧格式，直接返回
+            return data
     except requests.exceptions.RequestException as e:
         logger.error(f"获取日历数据失败: {e}")
         return None
@@ -143,56 +195,79 @@ def pycreate_ics_file(calendar_data):
     # 添加事件
     event_count = 0
     for event_data in calendar_data:
-        # 解析日期时间
-        event_datetime = parse_datetime(event_data.get('dt_start'))
-        if not event_datetime:
+        # 新API使用 public_date 字段（时间戳格式）
+        public_date = event_data.get('public_date')
+        if not public_date:
+            continue
+            
+        # 过滤条件：只保留美国和中国的重要性最高事件
+        country = event_data.get('country', '')
+        importance = event_data.get('importance', 0)
+        
+        # 只处理美国或中国的重要性为3的事件
+        if country not in ['美国', '中国'] or importance != 3:
+            continue
+            
+        # 将时间戳转换为datetime对象
+        try:
+            event_datetime = datetime.fromtimestamp(public_date, tz=CHINA_TZ)
+            logger.info(f"原始时间戳: {public_date}, 转换后时间: {event_datetime.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        except (ValueError, TypeError) as e:
+            logger.warning(f"无法解析时间戳 {public_date}: {e}")
             continue
             
         # 处理所有事件，不再进行日期过滤
         cal_event = Event()
         
-        # 获取事件UID (保持事件唯一性)
-        cal_event.uid = event_data.get('uid', '')
+        # 获取事件UID (使用id字段)
+        cal_event.uid = f"{event_data.get('id', '')}_wscn_macro"
         
-        # 解析摘要中的时间和标题
-        time_str, title = parse_summary(event_data.get('summary', ''))
+        # 获取事件标题
+        title = event_data.get('title', '未知事件')
+        
+        # 设置事件名称，包含国家信息
+        country = event_data.get('country', '')
+        
+        # 根据国家使用对应的 emoji
+        country_emoji = ""
+        if country == "美国":
+            country_emoji = "🇺🇸"
+        elif country == "中国":
+            country_emoji = "🇨🇳"
+        else:
+            country_emoji = "🌍"  # 其他国家使用地球图标
+        
+        if country:
+            cal_event.name = f"{country_emoji} {title}"
+        else:
+            cal_event.name = title
         
         # 判断是否为全天事件
-        is_all_day = False
-        
-        # 如果摘要中有更准确的时间，则更新事件时间
-        if time_str and time_str != "待定" and event_datetime:
-            # 尝试替换事件日期中的时间部分
-            try:
-                hour, minute = map(int, time_str.split(':'))
-                # 创建具有正确时间的新日期时间对象，保留原始日期和时区
-                event_datetime = event_datetime.replace(hour=hour, minute=minute)
-                logger.debug(f"根据摘要中的时间更新事件时间: {time_str} -> {event_datetime}")
-            except (ValueError, AttributeError) as e:
-                logger.warning(f"无法从摘要中提取时间: {time_str}, {e}")
-                is_all_day = True
-        else:
-            # 如果没有具体时间，设置为全天事件
-            is_all_day = True
-            # 确保时间设置为当天的开始
-            event_datetime = event_datetime.replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # 设置事件名称
-        cal_event.name = title or event_data.get('summary', '未知事件')
+        # 1. 如果时间是00:00:00，则视为全天事件
+        # 2. 如果时间不是整点或常见时间点（如12:02这样的奇怪时间），也视为待定的全天事件
+        is_midnight = event_datetime.hour == 0 and event_datetime.minute == 0 and event_datetime.second == 0
+        is_odd_time = event_datetime.minute not in [0, 15, 30, 45]  # 非整点或常见时间点
+        is_all_day = is_midnight or is_odd_time
         
         # 设置事件时间
         if is_all_day:
-            # 全天事件：设置 begin 和 end 为同一天
-            # 注意：ics 库会自动处理全天事件的结束时间
-            cal_event.begin = event_datetime
-            cal_event.end = event_datetime
+            # 全天事件：使用日期对象，避免时区转换问题
+            event_date = event_datetime.date()
+            cal_event.begin = event_date
+            cal_event.end = event_date
             cal_event.make_all_day()  # 标记为全天事件
-            logger.debug(f"创建全天事件: {cal_event.name}")
+            
+            # 如果是因为时间奇怪而设为全天事件，在标题中添加"待定"标记
+            if is_odd_time and not is_midnight:
+                cal_event.name = f"{cal_event.name} (待定)"
+                logger.info(f"创建待定全天事件: {cal_event.name}, 日期: {event_date}, 原时间: {event_datetime.strftime('%H:%M:%S')}")
+            else:
+                logger.info(f"创建全天事件: {cal_event.name}, 日期: {event_date}")
         else:
-            # 普通事件：设置具体时间，默认持续30分钟
+            # 普通事件：设置具体时间，默认持续2小时
             cal_event.begin = event_datetime
-            cal_event.end = event_datetime + timedelta(minutes=30)
-            logger.debug(f"创建定时事件: {cal_event.name} at {event_datetime}")
+            cal_event.end = event_datetime + timedelta(hours=2)
+            logger.info(f"创建定时事件: {cal_event.name}, 时间: {event_datetime.strftime('%Y-%m-%d %H:%M:%S')}, 持续2小时")
         
         # 分析投资机会
         try:
@@ -209,12 +284,38 @@ def pycreate_ics_file(calendar_data):
             # 格式化分析结果
             analysis_text = analyzer.format_analysis_for_calendar(analysis)
             
-            # 添加到事件描述
-            cal_event.description = f"{analysis_text}"
+            # 构建事件描述，包含基本信息
+            description_parts = []
+            
+            # 添加基本事件信息
+            if event_data.get('event'):
+                description_parts.append(f"📊 事件详情: {event_data.get('event')}")
+            
+            if event_data.get('quantity') and event_data.get('unit'):
+                description_parts.append(f"📈 数据: {event_data.get('quantity')} {event_data.get('unit')}")
+            
+            # 添加foresight信息
+            if event_data.get('foresight'):
+                description_parts.append(f"🔮 {event_data.get('foresight')}")
+            
+            # 添加分析结果
+            if analysis_text:
+                description_parts.append("\n" + analysis_text)
+            
+            cal_event.description = "\n".join(description_parts)
             
         except Exception as e:
             logger.error(f"分析事件时出错: {e}")
-            cal_event.description = f"{event_data.get('summary', '')}"
+            
+            # 如果分析失败，使用基本描述
+            basic_info = [country_emoji]
+            if event_data.get('event'):
+                basic_info.append(f"📊 {event_data.get('event')}")
+            if event_data.get('quantity') and event_data.get('unit'):
+                basic_info.append(f"📈 {event_data.get('quantity')} {event_data.get('unit')}")
+            if event_data.get('foresight'):
+                basic_info.append(f"🔮 {event_data.get('foresight')}")
+            cal_event.description = "\n".join(basic_info)
         
         # 添加事件到日历
         cal.events.add(cal_event)

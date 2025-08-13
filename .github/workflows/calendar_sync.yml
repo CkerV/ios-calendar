@@ -29,8 +29,8 @@ jobs:
         mkdir -p calendar_files
         mkdir -p logs
         
-    - name: 获取全球日历数据并生成ICS文件
-      run: python src/core/fetch_calendar.py
+    - name: 获取事件日历数据并生成ICS文件
+      run: python src/core/fetch_event_calendar.py
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
@@ -39,40 +39,39 @@ jobs:
         COS_OBJECT_KEY: ${{ secrets.COS_OBJECT_KEY }}
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         
-    - name: 获取中国日历数据并生成ICS文件
-      run: python src/core/fetch_china_calendar.py
+    - name: 获取财报日历数据并生成ICS文件
+      run: python src/core/fetch_report_calendar.py
       env:
         COS_SECRET_ID: ${{ secrets.COS_SECRET_ID }}
         COS_SECRET_KEY: ${{ secrets.COS_SECRET_KEY }}
         COS_REGION: ${{ secrets.COS_REGION }}
         COS_BUCKET: ${{ secrets.COS_BUCKET }}
-        COS_OBJECT_KEY_CHINA: ${{ secrets.COS_OBJECT_KEY_CHINA || 'calendar/wsc_china_events.ics' }}
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        COS_REPORT_OBJECT_KEY: ${{ secrets.COS_REPORT_OBJECT_KEY || 'calendar/wsc_reports.ics' }}
         
-    - name: 检查全球日历ICS文件是否生成和上传
+    - name: 检查事件日历ICS文件是否生成和上传
       run: |
         if [ -f "calendar_files/wsc_events.ics" ]; then
-          echo "全球日历ICS文件已成功生成"
+          echo "事件日历ICS文件已成功生成"
           # 在工作流日志中显示ICS文件内容，方便在GitHub查看
-          echo "========================= 全球日历ICS文件内容 ========================="
+          echo "========================= 事件日历ICS文件内容 ========================="
           cat calendar_files/wsc_events.ics
           echo "================================================================"
           echo "文件已生成并可能已上传至腾讯云COS，请查看上方日志了解详情"
         else
-          echo "警告：全球日历ICS文件未生成"
+          echo "警告：事件日历ICS文件未生成"
           exit 1
         fi
         
-    - name: 检查中国日历ICS文件是否生成和上传
+    - name: 检查财报日历ICS文件是否生成和上传
       run: |
-        if [ -f "calendar_files/wsc_china_events.ics" ]; then
-          echo "中国日历ICS文件已成功生成"
+        if [ -f "calendar_files/wsc_reports.ics" ]; then
+          echo "财报日历ICS文件已成功生成"
           # 在工作流日志中显示ICS文件内容，方便在GitHub查看
-          echo "========================= 中国日历ICS文件内容 ========================="
-          cat calendar_files/wsc_china_events.ics
+          echo "========================= 财报日历ICS文件内容 ========================="
+          cat calendar_files/wsc_reports.ics
           echo "================================================================"
           echo "文件已生成并可能已上传至腾讯云COS，请查看上方日志了解详情"
         else
-          echo "警告：中国日历ICS文件未生成"
+          echo "警告：财报日历ICS文件未生成"
           exit 1
         fi 
