@@ -114,15 +114,15 @@ def fetch_single_day_report_data(day_info):
             'end': day_info['end']
         }
         
-        logger.info(f"请求 {day_info['date']} 财报数据: {REPORT_CALENDAR_URL}")
-        logger.info(f"请求参数: {params}")
+        logger.info("请求 {} 财报数据: {}".format(day_info['date'], REPORT_CALENDAR_URL))
+        logger.info("请求参数: {}".format(params))
         
         # 添加请求头来避免403错误
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'application/json, text/plain, */*',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'Referer': 'https://wallstreetcn.com/'
         }
@@ -131,7 +131,6 @@ def fetch_single_day_report_data(day_info):
         response.raise_for_status()
         
         data = response.json()
-        logger.info(f"{day_info['date']} API响应状态: {response.status_code}")
         
         # 检查API响应格式
         if isinstance(data, dict) and 'code' in data:
