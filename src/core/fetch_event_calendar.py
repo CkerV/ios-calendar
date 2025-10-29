@@ -205,7 +205,7 @@ def pycreate_ics_file(calendar_data):
         importance = event_data.get('importance', 0)
         
         # 只处理美国或中国的重要性为3的事件
-        if country not in ['美国', '中国'] or importance != 3:
+        if country not in ['美国', '中国'] or importance < 3:
             continue
             
         # 将时间戳转换为datetime对象
